@@ -383,6 +383,12 @@ into a single platform.
 
 ---
 
+Web Application Video
+
+https://github.com/user-attachments/assets/302882e9-ca4c-4f91-b6fe-1075dadbce8f
+
+
+
 # 📚 References
 
 1. Das et al. (2023) – Secure Blockchain-Enabled Vehicle Identity Management

@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SafeTour - Smart Tourist Safety Monitoring</title>
+
+    <!-- Tailwind CDN (for convenience) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      /* ========== Palette (user provided) ========== */
+      :root {
+        --deep-teal: #00796b;
+        --soft-coral: #ff6f61;
+        --light-mint: #a7d7c5;
+        --warm-gray: #8d8d8d;
+        --golden-yellow: #ffc107;
+        --soft-white: #f9f9f9;
+
+        /* UI variables derived */
+        --bg: var(--soft-white);
+        --card-bg: rgba(255, 255, 255, 0.98);
+        --text: #0b1220;
+        --muted: var(--warm-gray);
+        --accent: var(--deep-teal);
+        --sos: var(--golden-yellow);
+      }
+
+      /* Dark theme overrides */
+      .theme-dark {
+        --bg: #072826; /* deep dark teal */
+        --card-bg: rgba(5, 18, 16, 0.85);
+        --text: #e8f5f2;
+        --muted: #bdbdbd;
+        --accent: #66b2a3;
+        --sos: #ffb300;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial;
+        background: linear-gradient(135deg, #f7fbf9 0%, var(--light-mint) 100%);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+        background: var(--bg);
+        transition: background 0.25s ease, color 0.25s ease;
+      }
+
+      /* Header */
+      .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 60;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.7),
+          rgba(255, 255, 255, 0.6)
+        );
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.6rem 1rem;
+        box-shadow: 0 6px 24px rgba(2, 6, 23, 0.06);
+      }
+      .theme-dark .topbar {
+        background: linear-gradient(
+          90deg,
+          rgba(0, 0, 0, 0.35),
+          rgba(0, 0, 0, 0.25)
+        );
+      }
+
+      /* Nav tabs */
+      .nav-tab {
+        transition: all 0.2s ease;
+        border-radius: 9999px;
+        padding: 0.5rem 0.9rem;
+      }
+      .nav-tab.active {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Cards */
+      .card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.03);
+      }
+      .theme-dark .card {
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+      }
+
+      /* Map container */
+      .map-container {
+        width: 100%;
+        height: 420px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #e6f5ef;
+      }
+      .theme-dark .map-container {
+        background: #042a26;
+      }
+
+      /* SOS button (golden) */
+      .sos-button {
+        display: block;
+        margin: 1rem auto 0;
+        width: min(720px, 100%);
+        padding: 1.25rem;
+        border-radius: 9999px;
+        border: none;
+        font-weight: 700;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #1b1b1b;
+        background: linear-gradient(90deg, var(--golden-yellow), #ffb23a);
+        box-shadow: 0 8px 36px rgba(255, 193, 7, 0.18);
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      .sos-button:active {
+        transform: scale(0.985);
+      }
+      .theme-dark .sos-button {
+        color: #072826;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        background: var(--deep-teal);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        z-index: 9999;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.25s ease;
+        pointer-events: none;
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        min-width: 220px;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      .theme-dark .toast {
+        background: var(--accent);
+        color: #042826;
+      }
+
+      /* Inputs / forms themed */
+      input[type="text"],
+      input[type="tel"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid rgba(13, 13, 13, 0.08);
+        background: var(--soft-white);
+        color: var(--text);
+        outline: none;
+      }
+      .theme-dark input[type="text"],
+      .theme-dark textarea,
+      .theme-dark select {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+        border-color: var(--deep-teal);
+      }
+
+      /* Small helpers */
+      .muted {
+        color: var(--muted);
+      }
+      .flex-center {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .map-control {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        z-index: 10;
+      }
+
+      @media (max-width: 768px) {
+        .map-container {
+          height: 320px;
+        }
+        .sos-button {
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Topbar: logo (left) and profile + dark toggle (right) -->
+    <header class="topbar">
+      <div class="flex items-center gap-3">
+        <img
+          src="SafeTour_logo.jpeg"
+          alt="SafeTour logo"
+          style="
+            width: 54px;
+            height: 54px;
+            border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+          "
+        />
+        <div>
+          <div style="font-weight: 700; color: var(--deep-teal)">SafeTour</div>
+          <div class="muted" style="font-size: 12px">
+            Smart Tourist Safety Monitoring
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="muted" style="font-size: 13px">
+          Tourist ID: <strong>123ABC</strong>
+        </div>
+
+        <button
+          id="themeToggle"
+          title="Toggle dark mode"
+          style="
+            background: transparent;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 0.4rem 0.6rem;
+            border-radius: 8px;
+          "
+        >
+          Toggle Theme
+        </button>
+
+        <img
+          id="profilePic"
+          src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/4ef46f79-f53a-48b3-a2a3-edf624628cb6.png"
+          alt="Profile"
+          style="
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+          "
+        />
+
+        <button
+          id="logoutBtn"
+          style="
+            background: var(--soft-coral);
+            color: white;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+          "
+        >
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main style="padding: 96px 1rem 2rem; max-width: 1150px; margin: 0 auto">
+      <!-- Nav -->
+      <nav
+        style="
+          display: flex;
+          gap: 0.6rem;
+          flex-wrap: wrap;
+          justify-content: center;
+          margin-bottom: 1rem;
+        "
+      >
+        <button class="nav-tab active" data-section="home">
+          Home Dashboard
+        </button>
+        <button class="nav-tab" data-section="hospital">
+          Nearest Hospital
+        </button>
+        <button class="nav-tab" data-section="police">Police Station</button>
+        <button class="nav-tab" data-section="restaurant">Safe Stays</button>
+        <button class="nav-tab" data-section="incidents">
+          Incident Report
+        </button>
+        <button class="nav-tab" data-section="contacts">
+          Emergency Contacts
+        </button>
+        <button class="nav-tab" data-section="weather">Weather Alert</button>
+        <button class="nav-tab" data-section="voice">Voice Assistant</button>
+      </nav>
+
+      <!-- HOME -->
+      <section id="home" class="section active">
+        <div class="map-container" id="homeMap" aria-label="Live map"></div>
+
+        <button
+          id="sosButton"
+          class="sos-button"
+          style="
+            background: linear-gradient(90deg, var(--golden-yellow), #ffb23a);
+          "
+        >
+          🚨 SOS EMERGENCY
+        </button>
+
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+          "
+        >
+          <div class="card">
+            <h3 style="color: var(--deep-teal); font-weight: 700">
+              Welcome to SafeTour
+            </h3>
+            <p class="muted" style="margin-top: 0.5rem">
+              AI-powered safety companion for tourists. Monitor risks, receive
+              alerts and share location in emergencies.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="color: var(--deep-teal); font-weight: 700">
+              Current Status
+            </h3>
+            <p style="margin-top: 0.5rem" class="muted">
+              Geo-location: <span id="geoStatus">Inactive</span><br />AI
+              Monitor: Scanning
+            </p>
+            <div style="margin-top: 0.5rem">
+              <button
+                id="refreshStatus"
+                style="
+                  background: var(--deep-teal);
+                  color: white;
+                  padding: 0.45rem 0.7rem;
+                  border-radius: 8px;
+                  border: none;
+                "
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="color: var(--soft-coral); font-weight: 700">
+              AI Alerts
+            </h3>
+            <p id="alerts" class="muted" style="margin-top: 0.5rem">
+              No active alerts. Safe zone detected.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Hospital -->
+      <section id="hospital" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Nearest Hospitals
+          </h3>
+          <div
+            id="hospitalMap"
+            class="map-container"
+            style="margin-top: 0.75rem"
+          ></div>
+          <div id="hospitalList" style="margin-top: 0.75rem"></div>
+        </div>
+      </section>
+
+      <!-- Police -->
+      <section id="police" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Nearest Police Stations
+          </h3>
+          <div
+            id="policeMap"
+            class="map-container"
+            style="margin-top: 0.75rem"
+          ></div>
+          <div id="policeList" style="margin-top: 0.75rem"></div>
+        </div>
+      </section>
+
+      <!-- Restaurant -->
+      <section id="restaurant" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Safe Stays & Restaurants
+          </h3>
+          <div
+            id="restaurantMap"
+            class="map-container"
+            style="margin-top: 0.75rem"
+          ></div>
+          <div id="restaurantList" style="margin-top: 0.75rem"></div>
+        </div>
+      </section>
+
+      <!-- Incidents -->
+      <section id="incidents" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Incident Reporting
+          </h3>
+          <form
+            id="incidentForm"
+            style="margin-top: 0.75rem; display: grid; gap: 0.5rem"
+          >
+            <label class="muted">Type</label>
+            <select id="incidentType" required>
+              <option value="theft">Theft</option>
+              <option value="harassment">Harassment</option>
+              <option value="medical">Medical Emergency</option>
+              <option value="other">Other</option>
+            </select>
+
+            <label class="muted">Description</label>
+            <textarea
+              id="incidentDescription"
+              rows="4"
+              placeholder="Describe the incident..."
+            ></textarea>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+              <button
+                type="submit"
+                style="
+                  background: var(--soft-coral);
+                  color: rgb(250, 248, 248);
+                  padding: 0.5rem 0.75rem;
+                  border-radius: 8px;
+                  border: none;
+                "
+              >
+                Submit
+              </button>
+              <button
+                id="voiceReportBtn"
+                type="button"
+                style="
+                  background: var(--golden-yellow);
+                  border: none;
+                  padding: 0.5rem 0.75rem;
+                  border-radius: 8px;
+                "
+              >
+                Voice Report
+              </button>
+            </div>
+
+            <div
+              id="reportResponse"
+              style="
+                display: none;
+                margin-top: 0.5rem;
+                background: var(--light-mint);
+                padding: 0.5rem;
+                border-radius: 6px;
+              "
+            >
+              Report submitted successfully! Authorities notified.
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Contacts -->
+      <section id="contacts" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Emergency Contacts
+          </h3>
+          <form
+            id="contactForm"
+            style="
+              margin-top: 0.5rem;
+              display: grid;
+              grid-template-columns: 1fr auto;
+              gap: 0.5rem;
+              align-items: center;
+            "
+          >
+            <input id="contactName" type="text" placeholder="Name" required />
+            <input
+              id="contactNumber"
+              type="text"
+              placeholder="Phone"
+              required
+            />
+            <button
+              style="
+                grid-column: span 2;
+                background: var(--deep-teal);
+                color: white;
+                padding: 0.5rem 0.75rem;
+                border-radius: 8px;
+                border: none;
+                margin-top: 0.25rem;
+              "
+            >
+              Add
+            </button>
+          </form>
+          <ul
+            id="contactList"
+            style="
+              margin-top: 0.75rem;
+              list-style: none;
+              padding: 0;
+              display: grid;
+              gap: 0.5rem;
+            "
+          ></ul>
+        </div>
+      </section>
+
+      <!-- Weather -->
+      <section id="weather" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">Weather</h3>
+          <div id="weatherInfo" style="margin-top: 0.5rem" class="muted">
+            Loading...
+          </div>
+          <div style="margin-top: 0.5rem">
+            <button
+              id="refreshWeather"
+              style="
+                background: var(--deep-teal);
+                color: white;
+                padding: 0.4rem 0.6rem;
+                border-radius: 8px;
+                border: none;
+              "
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Voice -->
+      <section id="voice" class="section" style="display: none">
+        <div class="card">
+          <h3 style="font-weight: 700; color: var(--deep-teal)">
+            Voice Assistant
+          </h3>
+          <div style="margin-top: 0.5rem">
+            <input
+              id="voiceInputVisible"
+              placeholder="Say 'Help' or 'SOS'..."
+              readonly
+            />
+            <div style="margin-top: 0.5rem">
+              <button
+                id="startVoice"
+                style="
+                  background: var(--soft-coral);
+                  color: white;
+                  padding: 0.4rem 0.6rem;
+                  border-radius: 8px;
+                  border: none;
+                "
+              >
+                Start Listening
+              </button>
+            </div>
+            <div
+              id="voiceResponse"
+              style="margin-top: 0.5rem"
+              class="muted"
+            ></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 1rem; color: var(--muted)">
+      <small id="footerYear"></small>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- Hidden audio for SOS -->
+    <audio
+      id="sosAudio"
+      src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+      preload="auto"
+      crossorigin="anonymous"
+    ></audio>
+
+    <!-- Google Maps will be loaded dynamically; we also have a safe initMap below -->
+    <script>
+      /* ---------------- Utility & Theme Handling ---------------- */
+      (function () {
+        // apply system preference + persisted user choice
+        const stored = localStorage.getItem("safetour_theme"); // 'dark'|'light'|null
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const initial = stored || (prefersDark ? "dark" : "light");
+
+        function applyTheme(theme) {
+          if (theme === "dark")
+            document.documentElement.classList.add("theme-dark");
+          else document.documentElement.classList.remove("theme-dark");
+        }
+        applyTheme(initial);
+
+        // expose toggle
+        document.addEventListener("DOMContentLoaded", () => {
+          const toggle = document.getElementById("themeToggle");
+          if (toggle) {
+            toggle.addEventListener("click", () => {
+              const now = document.documentElement.classList.contains(
+                "theme-dark"
+              )
+                ? "light"
+                : "dark";
+              applyTheme(now);
+              localStorage.setItem("safetour_theme", now);
+            });
+          }
+        });
+      })();
+
+      // Safe DOM ready
+      function onReady(fn) {
+        if (document.readyState === "loading")
+          document.addEventListener("DOMContentLoaded", fn);
+        else fn();
+      }
+
+      /* ---------------- UI helpers ---------------- */
+      onReady(() => {
+        const toastEl = document.getElementById("toast");
+        let toastTimer = null;
+        window.showToast = function (msg, timeout = 3000) {
+          if (!toastEl) return;
+          toastEl.textContent = msg;
+          toastEl.classList.add("show");
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(
+            () => toastEl.classList.remove("show"),
+            timeout
+          );
+        };
+
+        // Tab switching - guard for missing sections
+        const tabs = Array.from(document.querySelectorAll(".nav-tab"));
+        const sections = Array.from(document.querySelectorAll(".section"));
+        function showSection(id) {
+          const target = document.getElementById(id);
+          if (!target) {
+            showToast(`Section '${id}' not found`);
+            return;
+          }
+          sections.forEach((s) => (s.style.display = "none"));
+          target.style.display = "block";
+          // update active class
+          tabs.forEach((t) => t.classList.remove("active"));
+          const tab = tabs.find((t) => t.dataset.section === id);
+          if (tab) tab.classList.add("active");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        // attach
+        tabs.forEach((t) =>
+          t.addEventListener("click", () => showSection(t.dataset.section))
+        );
+
+        // footer year
+        const fy = document.getElementById("footerYear");
+        if (fy) fy.textContent = `© ${new Date().getFullYear()} SafeTour`;
+
+        // logout (demo)
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn)
+          logoutBtn.addEventListener("click", () =>
+            showToast("Logged out (demo)")
+          );
+
+        // simple contact list handling (localStorage)
+        function escapeHtml(s) {
+          return String(s || "").replace(
+            /[&<>\"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              }[c])
+          );
+        }
+        function renderContacts() {
+          const listEl = document.getElementById("contactList");
+          if (!listEl) return;
+          const arr = JSON.parse(
+            localStorage.getItem("safetour_contacts") || "[]"
+          );
+          listEl.innerHTML =
+            arr
+              .map(
+                (c, i) => `
+          <li style="display:flex;justify-content:space-between;align-items:center;padding:.5rem;background:var(--light-mint);border-radius:8px;">
+            <div><strong>${escapeHtml(
+              c.name
+            )}</strong><div style="font-size:.9rem;color:var(--warm-gray)">${escapeHtml(
+                  c.number
+                )}</div></div>
+            <div style="display:flex;gap:.5rem">
+              <a href="tel:${encodeURIComponent(
+                c.number
+              )}" style="color:var(--deep-teal);font-weight:600">Call</a>
+              <button data-i="${i}" class="remove-contact" style="background:transparent;border:none;color:var(--soft-coral);cursor:pointer">Remove</button>
+            </div>
+          </li>`
+              )
+              .join("") ||
+            '<li style="color:var(--muted)">No contacts yet.</li>';
+
+          Array.from(listEl.querySelectorAll(".remove-contact")).forEach(
+            (btn) => {
+              btn.addEventListener("click", () => {
+                const i = Number(btn.dataset.i);
+                const arr = JSON.parse(
+                  localStorage.getItem("safetour_contacts") || "[]"
+                );
+                arr.splice(i, 1);
+                localStorage.setItem("safetour_contacts", JSON.stringify(arr));
+                renderContacts();
+                showToast("Contact removed");
+              });
+            }
+          );
+        }
+        const contactForm = document.getElementById("contactForm");
+        if (contactForm) {
+          contactForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const name = (document.getElementById("contactName") || {}).value;
+            const number = (document.getElementById("contactNumber") || {})
+              .value;
+            if (!name || !number) {
+              showToast("Enter name and number");
+              return;
+            }
+            const arr = JSON.parse(
+              localStorage.getItem("safetour_contacts") || "[]"
+            );
+            arr.push({ name, number });
+            localStorage.setItem("safetour_contacts", JSON.stringify(arr));
+            renderContacts();
+            contactForm.reset();
+            showToast("Contact added");
+          });
+        }
+        renderContacts();
+
+        // Incident form
+        const incidentForm = document.getElementById("incidentForm");
+        if (incidentForm) {
+          incidentForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const type = (document.getElementById("incidentType") || {}).value;
+            const desc =
+              (document.getElementById("incidentDescription") || {}).value ||
+              "";
+            const resp = document.getElementById("reportResponse");
+            if (resp) {
+              resp.style.display = "block";
+            }
+            showToast("Incident submitted. Authorities notified.");
+            setTimeout(() => {
+              if (resp) resp.style.display = "none";
+              incidentForm.reset();
+            }, 2200);
+          });
+        }
+
+        // voice buttons (demo)
+        const voiceInput = document.getElementById("voiceInputVisible");
+        const voiceResponse = document.getElementById("voiceResponse");
+
+        function startVoiceAssistant() {
+          if (
+            !(
+              "webkitSpeechRecognition" in window ||
+              "SpeechRecognition" in window
+            )
+          ) {
+            alert("Your browser does not support voice recognition.");
+            return;
+          }
+
+          const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.lang = "en-US";
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+
+          recognition.start();
+          voiceInput.value = "Listening...";
+          voiceResponse.textContent = "";
+
+          recognition.onresult = function (event) {
+            const command = event.results[0][0].transcript.toLowerCase();
+            voiceInput.value = command;
+            handleVoiceCommand(command);
+          };
+
+          recognition.onerror = function (event) {
+            voiceInput.value = "";
+            voiceResponse.textContent = `Error: ${event.error}`;
+          };
+
+          recognition.onend = function () {
+            if (voiceInput.value === "Listening...") voiceInput.value = "";
+          };
+        }
+
+        function handleVoiceCommand(command) {
+          if (command.includes("sos") || command.includes("help")) {
+            triggerSOSAction();
+            voiceResponse.textContent = "🚨 SOS triggered!";
+          } else if (command.includes("hospital")) {
+            showToast("Navigating to nearest hospital...");
+            voiceResponse.textContent = "🏥 Showing nearest hospitals.";
+            const hospitalTab = document.querySelector(
+              '.nav-tab[data-section="hospital"]'
+            );
+            if (hospitalTab) hospitalTab.click();
+          } else if (command.includes("police")) {
+            showToast("Navigating to nearest police station...");
+            voiceResponse.textContent = "👮 Showing nearest police stations.";
+            const policeTab = document.querySelector(
+              '.nav-tab[data-section="police"]'
+            );
+            if (policeTab) policeTab.click();
+          } else if (command.includes("status")) {
+            const geoStatus = document.getElementById("geoStatus");
+            if (geoStatus) geoStatus.textContent = "Active";
+            showToast("Status refreshed via voice command");
+            voiceResponse.textContent = "✅ Status updated.";
+          } else {
+            voiceResponse.textContent = `❌ Command not recognized: "${command}"`;
+          }
+        }
+
+        document
+          .getElementById("startVoice")
+          .addEventListener("click", startVoiceAssistant);
+
+        // refresh weather
+        const refreshWeatherBtn = document.getElementById("refreshWeather");
+        if (refreshWeatherBtn)
+          refreshWeatherBtn.addEventListener("click", fetchWeather);
+        fetchWeather(); // initial
+      }); // end onReady
+
+      /* ---------------- Weather (OpenWeather) ---------------- */
+      async function fetchWeather() {
+        const el = document.getElementById("weatherInfo");
+
+        // Step 1: Get user location
+        if (!navigator.geolocation) {
+          el.textContent = "Geolocation not supported ❌";
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            try {
+              // Step 2: Fetch weather data with alerts
+              const res = await fetch(
+                `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&appid=api_key&units=metric`
+              );
+
+              if (!res.ok) throw new Error("Weather fetch failed");
+
+              const data = await res.json();
+
+              // Step 3: Extract main weather info
+              const temp = data.current.temp;
+              const humidity = data.current.humidity;
+              const wind = data.current.wind_speed;
+              const condition = data.current.weather[0].description;
+
+              // Step 4: Build weather string
+              let weatherHTML = `
+        📍 Location: (${lat.toFixed(2)}, ${lon.toFixed(2)})<br>
+        🌤️ <strong>${condition}</strong> — ${temp}°C <br>
+        💧 Humidity: ${humidity}% | 🌬️ Wind: ${wind} km/h
+      `;
+
+              // Step 5: Add weather alerts if available
+              if (data.alerts && data.alerts.length > 0) {
+                weatherHTML += `<br><br>⚠️ <strong>Weather Alerts:</strong><ul>`;
+                data.alerts.forEach((a) => {
+                  weatherHTML += `<li><strong>${a.event}</strong> (${a.sender_name})<br>
+                          ${a.description}</li>`;
+                });
+                weatherHTML += `</ul>`;
+              } else {
+                weatherHTML += `<br><br>✅ No extreme weather alerts.`;
+              }
+
+              el.innerHTML = weatherHTML;
+            } catch (e) {
+              el.textContent = "Unable to fetch weather ❌";
+            }
+          },
+          () => {
+            el.textContent = "Location access denied ❌";
+          }
+        );
+      }
+
+      /* ---------------- SOS Button (vibration + sound + location) ---------------- */
+      onReady(() => {
+        const sosBtn = document.getElementById("sosButton");
+        const audio = document.getElementById("sosAudio");
+        if (sosBtn) {
+          sosBtn.addEventListener("click", async () => {
+            // vibration
+            try {
+              if (navigator.vibrate)
+                navigator.vibrate([700, 300, 700, 300, 1200]);
+            } catch (e) {}
+            // play
+            try {
+              if (audio) {
+                audio.volume = 1.0;
+                audio.currentTime = 0;
+                await audio.play().catch(() => {});
+              }
+            } catch (e) {
+              console.warn("sos audio", e);
+            }
+            showToast("🚨 SOS triggered — alerting contacts & authorities");
+            // try get location
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  const lat = pos.coords.latitude.toFixed(6),
+                    lng = pos.coords.longitude.toFixed(6);
+                  showToast(`Location: ${lat}, ${lng}`, 5000);
+                  // In a real app: send to server / SMS / share with contacts
+                },
+                (err) => {
+                  showToast("Unable to get location");
+                },
+                { timeout: 7000 }
+              );
+            }
+          });
+        }
+      });
+
+      /* ---------------- Google Maps initialization (safe) ---------------- */
+      // We'll add initMap as window callback. Use retry to ensure container exists.
+      window.initMap = function initMap(retries = 10) {
+        const homeEl = document.getElementById("homeMap");
+        if (!homeEl && retries > 0) {
+          setTimeout(() => window.initMap(retries - 1), 200);
+          return;
+        }
+        if (!homeEl) {
+          console.warn("homeMap not found");
+          return;
+        }
+
+        // get location
+        function initForLocation(userLoc) {
+          try {
+            // create a map for the home view
+            const homeMap = new google.maps.Map(homeEl, {
+              center: userLoc,
+              zoom: 14,
+              mapTypeControl: false,
+              streetViewControl: false,
+            });
+
+            // a themed marker icon (Deep Teal) using SVG data URL
+            function makeIcon(color) {
+              const svg = encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="${color}" d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.8" fill="#fff"/></svg>`
+              );
+              return {
+                url: `data:image/svg+xml,${svg}`,
+                scaledSize: new google.maps.Size(36, 36),
+              };
+            }
+
+            const youMarker = new google.maps.Marker({
+              position: userLoc,
+              map: homeMap,
+              title: "You",
+              icon: makeIcon(
+                getComputedStyle(document.documentElement)
+                  .getPropertyValue("--deep-teal")
+                  .trim() || "#00796B"
+              ),
+            });
+
+            // initialize other maps if their containers exist
+            const initNearby = (containerId, placeType, listId, color) => {
+              const el = document.getElementById(containerId);
+              if (!el) return;
+              const map = new google.maps.Map(el, {
+                center: userLoc,
+                zoom: 14,
+                mapTypeControl: false,
+              });
+              new google.maps.Marker({
+                position: userLoc,
+                map,
+                title: "You",
+                icon: makeIcon(
+                  getComputedStyle(document.documentElement)
+                    .getPropertyValue("--deep-teal")
+                    .trim() || "#00796B"
+                ),
+              });
+
+              const service = new google.maps.places.PlacesService(map);
+              service.nearbySearch(
+                { location: userLoc, radius: 3000, type: [placeType] },
+                (results, status) => {
+                  const listEl = document.getElementById(listId);
+                  if (
+                    status === google.maps.places.PlacesServiceStatus.OK &&
+                    Array.isArray(results)
+                  ) {
+                    const items = results
+                      .slice(0, 8)
+                      .map((r) => {
+                        const pos = r.geometry && r.geometry.location;
+                        // marker for the place
+                        const marker = new google.maps.Marker({
+                          position: pos,
+                          map,
+                          title: r.name,
+                          icon: makeIcon(
+                            color ||
+                              getComputedStyle(document.documentElement)
+                                .getPropertyValue("--deep-teal")
+                                .trim() ||
+                              "#00796B"
+                          ),
+                        });
+                        // trimmed content for info window with themed styles (inline CSS)
+                        const bg = document.documentElement.classList.contains(
+                          "theme-dark"
+                        )
+                          ? "#072826"
+                          : "#F9F9F9";
+                        const text =
+                          document.documentElement.classList.contains(
+                            "theme-dark"
+                          )
+                            ? "#E8F5F2"
+                            : "#042826";
+                        const html = `
+                    <div style="min-width:200px;font-family:Inter,Arial,sans-serif">
+                      <div style="font-weight:700;color:${escapeHtml(
+                        text
+                      )};margin-bottom:4px">${escapeHtml(r.name)}</div>
+                      <div style="font-size:13px;color:${escapeHtml(
+                        getComputedStyle(
+                          document.documentElement
+                        ).getPropertyValue("--warm-gray") || "#8D8D8D"
+                      )};margin-bottom:6px">${escapeHtml(
+                          r.vicinity || ""
+                        )}</div>
+                      <div style="display:flex;gap:8px;align-items:center">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${pos.lat()},${pos.lng()}" target="_blank" style="background:${escapeHtml(
+                          getComputedStyle(
+                            document.documentElement
+                          ).getPropertyValue("--golden-yellow") || "#FFC107"
+                        )};padding:.4rem .55rem;border-radius:6px;color:#000;text-decoration:none;font-weight:600">Directions</a>
+                        <a href="#" style="color:${escapeHtml(
+                          getComputedStyle(
+                            document.documentElement
+                          ).getPropertyValue("--soft-coral") || "#FF6F61"
+                        )};font-weight:600;text-decoration:none">Call</a>
+                      </div>
+                    </div>`;
+                        const infow = new google.maps.InfoWindow({
+                          content: html,
+                        });
+                        marker.addListener("click", () =>
+                          infow.open(map, marker)
+                        );
+                        return `<div style="padding:.4rem;border-bottom:1px solid rgba(0,0,0,0.04)"><strong>${escapeHtml(
+                          r.name
+                        )}</strong><div style="font-size:.9rem;color:${escapeHtml(
+                          getComputedStyle(
+                            document.documentElement
+                          ).getPropertyValue("--warm-gray") || "#8D8D8D"
+                        )}">${escapeHtml(r.vicinity || "")}</div></div>`;
+                      })
+                      .join("");
+                    if (listEl) listEl.innerHTML = items;
+                  } else {
+                    if (listEl)
+                      listEl.innerHTML = `<div style="color:var(--muted)">No results found nearby.</div>`;
+                  }
+                }
+              );
+            };
+
+            initNearby(
+              "hospitalMap",
+              "hospital",
+              "hospitalList",
+              getComputedStyle(document.documentElement)
+                .getPropertyValue("--deep-teal")
+                .trim()
+            );
+            initNearby(
+              "policeMap",
+              "police",
+              "policeList",
+              getComputedStyle(document.documentElement)
+                .getPropertyValue("--deep-teal")
+                .trim()
+            );
+            initNearby(
+              "restaurantMap",
+              "restaurant",
+              "restaurantList",
+              getComputedStyle(document.documentElement)
+                .getPropertyValue("--deep-teal")
+                .trim()
+            );
+          } catch (e) {
+            console.error("Maps init error", e);
+          }
+        } // end initForLocation
+
+        // attempt geolocation with fallback
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              initForLocation({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              });
+              const geoStatus = document.getElementById("geoStatus");
+              if (geoStatus) geoStatus.textContent = "Active";
+            },
+            (err) => {
+              // fallback to Pune if geo blocked/timeout
+              initForLocation({ lat: 18.5204, lng: 73.8567 });
+              console.warn("Geolocation failed, using fallback: Pune");
+            },
+            { timeout: 7000 }
+          );
+        } else {
+          initForLocation({ lat: 18.5204, lng: 73.8567 });
+        }
+      }; // end initMap
+
+      // dynamic load google maps if not already present
+      (function loadMapsScript() {
+        if (window.google && window.google.maps) return;
+        const s = document.createElement("script");
+        s.src =
+          "https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap";
+        s.async = true;
+        s.defer = true;
+        s.onerror = () => console.warn("Google Maps script failed to load");
+        document.head.appendChild(s);
+      })();
+
+      /* ---------------- small helpers ---------------- */
+      function escapeHtml(s) {
+        return String(s || "").replace(
+          /[&<>\"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[c])
+        );
+      }
+    </script>
+  </body>
+</html>

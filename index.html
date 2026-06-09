@@ -1204,12 +1204,16 @@
         }
       }; // end initMap
 
-      // dynamic load google maps if not already present
       (function loadMapsScript() {
         if (window.google && window.google.maps) return;
+        const urlParams = new URLSearchParams(window.location.search);
+        const userKey = urlParams.get('key') || '';
         const s = document.createElement("script");
-        s.src =
-          "https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap";
+        if (userKey) {
+          s.src = `https://maps.googleapis.com/maps/api/js?key=${userKey}&libraries=places&callback=initMap`;
+        } else {
+          s.src = "https://maps.googleapis.com/maps/api/js?libraries=places&callback=initMap";
+        }
         s.async = true;
         s.defer = true;
         s.onerror = () => console.warn("Google Maps script failed to load");

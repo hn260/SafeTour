@@ -385,8 +385,8 @@ into a single platform.
 
 # Web Application Video
 
-https://github.com/user-attachments/assets/302882e9-ca4c-4f91-b6fe-1075dadbce8f
 
+https://github.com/user-attachments/assets/4d30ee61-08cc-4f17-af91-f4151ec1f005
 
 
 # 📚 References
